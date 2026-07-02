@@ -32,7 +32,7 @@ class MyButtonState extends State<MyButton> {
           },
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.all(18),
-            backgroundColor: Colors.green.shade700, // Tom esportivo para o ArenaScout
+            backgroundColor: Colors.green.shade700,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),

@@ -27,6 +27,10 @@ class RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    // 1. O SEGREDO: Salva o navegador do contexto atual ANTES do await
+    final navigator = Navigator.of(context);
+
+    // Mostra o pop-up
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -47,13 +51,16 @@ class RegisterScreenState extends State<RegisterScreen> {
         'photoURL': 'https://ui-avatars.com/api/?name=${_nameController.text}&background=00796B&color=fff'
       });
 
-      if (mounted) Navigator.pop(context);
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthScreen()));
-      }
+      // 2. Fecha o pop-up usando a referência salva, SEM usar o 'if (mounted)'
+      navigator.pop();
+
     } on FirebaseAuthException catch (e) {
-      if (mounted) Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Erro ao cadastrar.')));
+      // Também fecha o pop-up se der erro!
+      navigator.pop();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Erro ao cadastrar.')));
+      }
     }
   }
 

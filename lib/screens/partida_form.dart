@@ -55,33 +55,47 @@ class _PartidaFormState extends State<PartidaForm> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
 
-      final String timeC = _timeCasaController.text;
-      final String timeF = _timeForaController.text;
-      final int golsC = int.tryParse(_golsCasaController.text) ?? 0;
-      final int golsF = int.tryParse(_golsForaController.text) ?? 0;
+      try {
+        print("--- INICIANDO SALVAMENTO ---");
+        final String timeC = _timeCasaController.text;
+        final String timeF = _timeForaController.text;
+        final int golsC = int.tryParse(_golsCasaController.text) ?? 0;
+        final int golsF = int.tryParse(_golsForaController.text) ?? 0;
 
-      // 1. Chama a IA para gerar a análise do jogo
-      final AiService aiService = AiService();
-      String analiseGerada = await aiService.gerarAnalise(timeC, golsC, timeF, golsF);
+        print("1. Chamando o Gemini...");
+        final AiService aiService = AiService();
+        String analiseGerada = await aiService.gerarAnalise(timeC, golsC, timeF, golsF);
+        print("2. Resposta do Gemini: $analiseGerada");
 
-      // 2. Monta o objeto com os dados da tela + GPS + IA
-      final novaPartida = Partida(
-        id: '', // O Firestore gera o ID automaticamente
-        titulo: _tituloController.text,
-        timeCasa: timeC,
-        timeFora: timeF,
-        golsCasa: golsC,
-        golsFora: golsF,
-        latitude: _latitude,
-        longitude: _longitude,
-        analiseIA: analiseGerada, // Aqui gravamos o retorno do Gemini!
-      );
+        final novaPartida = Partida(
+          id: '',
+          titulo: _tituloController.text,
+          timeCasa: timeC,
+          timeFora: timeF,
+          golsCasa: golsC,
+          golsFora: golsF,
+          latitude: _latitude,
+          longitude: _longitude,
+          analiseIA: analiseGerada,
+        );
 
-      // 3. Salva no banco de dados
-      await _dao.add(novaPartida);
+        print("3. Enviando para o Firestore...");
+        // O .timeout() é a mágica! Se o Firebase não responder em 10s, ele cancela e mostra o erro.
+        await _dao.add(novaPartida).timeout(const Duration(seconds: 10));
 
-      if (mounted) {
-        Navigator.pop(context); // Volta para a lista
+        print("4. Partida salva com sucesso!");
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        print("ERRO CAPTURADO: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha ao salvar: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
       }
     }
   }

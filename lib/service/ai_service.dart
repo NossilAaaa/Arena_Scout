@@ -1,45 +1,54 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_gemini/flutter_gemini.dart';
 import 'dart:io';
 
 class AiService {
-  static const String _apiKey = 'AIzaSyD8g41GjayV95uhhAiQFzUmc7oEXQJAZaw';
-  //static const String _apiKey = 'AIzaSyCk9YSVJ4Y0RWWW1AcXSfkuxsFMdtanpB0';
+
   Future<String> gerarAnalise(String timeCasa, int golsCasa, String timeFora, int golsFora) async {
-    try {
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: _apiKey,
-        // LIMITADOR DE TOKENS: Controla o tamanho da resposta e o custo
-        generationConfig: GenerationConfig(
-          maxOutputTokens: 100, // Limita a resposta a aproximadamente 100 tokens
-          temperature: 0.5,     // Controla a criatividade (0.0 = robótico, 1.0 = muito criativo)
-        ),
-      );
+    final prompt = '''
+    Atue como um comentarista esportivo especializado em futebol brasileiro. 
+    Faça uma análise técnica e curta (máximo de 3 frases) com os principais destaques da partida, sobre o seguinte placar: 
+    $timeCasa $golsCasa x $golsFora $timeFora.
+    ''';
 
-      final prompt = '''
-      Atue como um comentarista esportivo especializado em futebol brasileiro. 
-      Faça uma análise técnica e curta (máximo de 3 frases) sobre o seguinte placar: 
-      $timeCasa $golsCasa x $golsFora $timeFora.
-      ''';
+    // Loop inteligente: Tenta conectar até 3 vezes caso o servidor esteja sobrecarregado
+    for (int tentativa = 1; tentativa <= 3; tentativa++) {
+      try {
+        final gemini = Gemini.instance;
 
-      final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
+        final response = await gemini.text(prompt);
 
-      return response.text ?? 'Análise gerada, mas o texto retornou vazio.';
+        final textoResposta = response?.output ?? '';
 
-    } on GenerativeAIException catch (e) {
-      print('Erro da API Gemini: $e');
-      if (e.toString().contains('quota') || e.toString().contains('429')) {
-        return 'Erro: O limite de tokens gratuitos da IA foi atingido. Tente novamente mais tarde.';
+        if (textoResposta.isEmpty) {
+          throw Exception('Resposta vazia da IA.');
+        }
+
+        return textoResposta;
+
+      } catch (e) {
+        final erro = e.toString();
+        print('Tentativa $tentativa — Erro Gemini: $erro');
+
+        if (erro.contains('quota') || erro.contains('429')) {
+          return 'Erro: O limite de tokens gratuitos da IA foi atingido. Tente novamente mais tarde.';
+        }
+
+        final e503 = erro.contains('503') || erro.contains('high demand') || erro.contains('UNAVAILABLE');
+        if (e503 && tentativa < 3) {
+          print('Servidor ocupado. Aguardando ${tentativa * 2}s antes de tentar novamente...');
+
+          await Future.delayed(Duration(seconds: tentativa * 2));
+          continue;
+        }
+
+        if (e is SocketException || erro.contains('SocketException') || erro.contains('Failed host lookup')) {
+          return 'Erro de conexão: Verifique sua internet e tente novamente.';
+        }
+
+        return 'A Inteligência Artificial está com alta demanda de acessos no momento. Tente gerar uma nova análise mais tarde.';
       }
-      return 'Erro na IA: Não foi possível processar a análise técnica neste momento.';
-
-    } on SocketException catch (_) {
-      return 'Erro de conexão: Verifique sua internet e tente novamente.';
-
-    } catch (e) {
-      print('Erro desconhecido: $e');
-      return 'Ocorreu um erro inesperado ao conectar com a IA.';
     }
+
+    return 'Serviço da IA indisponível após 3 tentativas.';
   }
 }

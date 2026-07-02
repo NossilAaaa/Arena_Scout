@@ -22,12 +22,25 @@ class _PartidaListState extends State<PartidaList> {
   }
 
   Future<void> _carregarPartidas() async {
-    setState(() => _isLoading = true);
-    final lista = await _dao.getList();
-    setState(() {
-      _partidas = lista;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      final lista = await _dao.getList();
+
+      if (mounted) {
+        setState(() {
+          _partidas = lista;
+        });
+      }
+    } catch (e) {
+      print("Erro ao carregar a lista: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _excluirPartida(String id) async {
@@ -64,20 +77,96 @@ class _PartidaListState extends State<PartidaList> {
         itemCount: _partidas.length,
         itemBuilder: (context, index) {
           final p = _partidas[index];
+
+          // Substituição para o Card expansível
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            elevation: 3,
-            child: ListTile(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ExpansionTile(
+              shape: const Border(), // Remove bordas extras ao expandir
               leading: const Icon(Icons.sports_soccer, color: Colors.green, size: 40),
-              title: Text(p.titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(
-                '${p.timeCasa} ${p.golsCasa} x ${p.golsFora} ${p.timeFora}\n📍 GPS: ${p.latitude.toStringAsFixed(3)}, ${p.longitude.toStringAsFixed(3)}',
+              title: Text(
+                p.titulo,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              isThreeLine: true,
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.redAccent),
-                onPressed: () => _excluirPartida(p.id),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    '${p.timeCasa} ${p.golsCasa} x ${p.golsFora} ${p.timeFora}',
+                    style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Colors.red),
+                      const SizedBox(width: 4),
+                      Text(
+                        'GPS: ${p.latitude.toStringAsFixed(3)}, ${p.longitude.toStringAsFixed(3)}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+              children: [
+                // Balão de texto da Inteligência Artificial
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.auto_awesome, size: 18, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text(
+                              'Análise Tática - IA',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          p.analiseIA.isNotEmpty
+                              ? p.analiseIA
+                              : 'Nenhuma análise gerada para esta partida.',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Botão Excluir protegido dentro do menu expansível
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _excluirPartida(p.id),
+                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      label: const Text('Excluir Partida', style: TextStyle(color: Colors.red)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
